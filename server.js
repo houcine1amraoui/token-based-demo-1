@@ -1,4 +1,5 @@
 import express from "express";
+import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
 
@@ -60,32 +61,49 @@ app.post("/login", async (req, res) => {
   const token = jwt.sign(payload, process.env.TOKEN_SECRET, {
     expiresIn: "7d",
   });
-  return res.json({ token });
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: true, // Only over HTTPS
+    sameSite: "Strict", // or 'Lax'
+  });
+
+  res.send("You have successfully logged in");
 });
 
 // token-based authentication
 function isAuthenticated(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  if (!authHeader) {
-    return res.send("Invalid Authorization Header");
+  const cookies = req.cookies;
+  if (!cookies) {
+    return res.status(401).send("Unauthenticated");
   }
-  const token = authHeader.split(" ")[1];
+  const token = cookies.token;
   if (!token) {
-    return res.send("Invalid Authorization Header");
+    return res.send("Invalid Token");
   }
 
   try {
     const decoded = jwt.verify(token, process.env.TOKEN_SECRET);
-    console.log(decoded.username);
-    // return res.send(decoded);
+    req.username = decoded.username;
     next();
-    // return res.json(decoded);
   } catch (error) {
     return res.json(error.message);
   }
 }
 
-const PORT = 2000;
+// Logout: Option1: clear cookies
+// if token is kept, user can easly authenticate before token expiry
+// alternative solution: blacklist token until its expiry
+app.post("/logout", (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+  });
+  res.status(200).send({ message: "Logged out successfully" });
+});
+
+const PORT = 1000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
