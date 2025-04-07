@@ -58,11 +58,11 @@ app.post("/login", async (req, res) => {
 
   // create and sign a jwt token
   const payload = { username };
-  const token = jwt.sign(payload, process.env.TOKEN_SECRET, {
-    expiresIn: "7d",
+  const accessToken = jwt.sign(payload, process.env.TOKEN_SECRET, {
+    expiresIn: "15s",
   });
 
-  res.cookie("token", token, {
+  res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: true, // Only over HTTPS
     sameSite: "Strict", // or 'Lax'
@@ -77,14 +77,15 @@ function isAuthenticated(req, res, next) {
   if (!cookies) {
     return res.status(401).send("Unauthenticated");
   }
-  const token = cookies.token;
-  if (!token) {
+  const accessToken = cookies.accessToken;
+  if (!accessToken) {
     return res.send("Invalid Token");
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.TOKEN_SECRET);
+    const decoded = jwt.verify(accessToken, process.env.TOKEN_SECRET);
     req.username = decoded.username;
+    // console.log(decoded);
     next();
   } catch (error) {
     return res.json(error.message);
@@ -95,7 +96,7 @@ function isAuthenticated(req, res, next) {
 // if token is kept, user can easly authenticate before token expiry
 // alternative solution: blacklist token until its expiry
 app.post("/logout", (req, res) => {
-  res.clearCookie("token", {
+  res.clearCookie("accessToken", {
     httpOnly: true,
     secure: true,
     sameSite: "Strict",
